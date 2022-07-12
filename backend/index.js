@@ -5,6 +5,7 @@ import mongoose from 'mongoose';
 import { registerValidator } from './validations/auth.js';
 import { validationResult } from 'express-validator'; 
 import UserModel from './models/User.js'
+import checkAuth from './utils/checkAuth.js'
 
 
 mongoose
@@ -17,6 +18,44 @@ const app = express();
 
 app.use(express.json());
 
+app.post('/auth/login', async (req, res) =>{
+    try {
+        const user = await UserModel.findOne({ email: req.body.email })
+
+        if (!user) {
+            return res.status(404).json({
+                message: "User not found"
+            });
+        }
+
+        const isValidPass = await bcrypt.compare(req.body.password, user._doc.passwordHash);
+
+        if (!isValidPass) {
+            return res.status(403).json({
+                message: "Password ne shodizza"
+            });
+        }
+        const token = jwt.sign({
+            _id: user._id,
+        },
+        'secret123',
+        {
+          expiresIn: '30d',  
+        })
+        const { passwordHash, ...userData } = user._doc
+
+        res.json({
+            ...userData,
+            token})
+
+    } catch (err) {
+        console.log(err)
+        res.status(500).json({
+            message: 'Autorisation ne zaebis'
+        })
+    }
+})
+
 app.post('/auth/register', registerValidator, async (req, res) => {
     try {
         const errors = validationResult(req);
@@ -26,13 +65,13 @@ app.post('/auth/register', registerValidator, async (req, res) => {
     
         const password = req.body.password;
         const salt = await bcrypt.genSalt(10);
-        const passwordHash = await bcrypt.hash(password, salt);
+        const hash = await bcrypt.hash(password, salt);
     
         const doc = new UserModel({
             email: req.body.email,
             fullName: req.body.fullName,
             avatarUrl: req.body.avatarUrl,
-            passwordHash: passwordHash
+            passwordHash: hash
         })
     
         const user = await doc.save();
@@ -43,10 +82,11 @@ app.post('/auth/register', registerValidator, async (req, res) => {
         {
           expiresIn: '30d',  
         })
-    
-        res.json(
-            ...user,
-            token)
+        const { passwordHash, ...userData } = user._doc
+
+        res.json({
+            ...userData,
+            token})
     
 
     }  catch (err) {
@@ -56,6 +96,16 @@ app.post('/auth/register', registerValidator, async (req, res) => {
         })
     }  
 });
+
+app.get('/auth/me', checkAuth, (req, res) => {
+    try {
+        res.json({
+            success: true
+        })       
+    } catch (err) {
+
+    }
+})
 
 app.listen(4444, (err) => {
     if (err) {
