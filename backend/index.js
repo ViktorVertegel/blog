@@ -1,5 +1,6 @@
 import express from 'express';
 import mongoose from 'mongoose';
+import multer from 'multer';
 import { registerValidator, loginValidator, postCreateValidator } from './validations.js';
 import checkAuth from './utils/checkAuth.js'
 
@@ -15,17 +16,35 @@ mongoose
 
 const app = express();
 
+const storage = multer.diskStorage({
+    destination: (_, des_, cb) => {
+        cb(null, 'uploads')    
+    },
+    filename: (_, file, cb) => {
+        cb(null, file.originalname)    
+    },
+})
+
+const upload = multer({ storage })
+
 app.use(express.json());
+app.use('/uploads', express.static('uploads'))
 
 app.post('/auth/login', loginValidator, UserController.login)
 app.post('/auth/register', registerValidator, UserController.register );
 app.get('/auth/me', checkAuth, UserController.getMe)
 
-//app.get('/posts', PostController.getAll)
-//app.get('/posts/:id', PostController.getOne)
-app.post('/posts', checkAuth, postCreateValidator,  PostController.create)
-//app.delete('/posts', PostController.remove)
-//app.patch('/posts', PostController.update)
+app.post('/upload', checkAuth, upload.single('image'), (req, res) => {
+    res.json({
+        url: `/uploads/${req.file.originalname}`
+    })
+});
+
+app.get('/posts', PostController.getAll)
+app.get('/posts/:id', PostController.getOne)
+app.post('/posts', checkAuth, postCreateValidator, PostController.create)
+app.delete('/posts/:id', checkAuth, PostController.remove)
+app.patch('/posts/:id', checkAuth, PostController.update)
 
 
 
