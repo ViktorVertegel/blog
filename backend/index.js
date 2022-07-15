@@ -2,10 +2,11 @@ import express from 'express';
 import mongoose from 'mongoose';
 import multer from 'multer';
 import { registerValidator, loginValidator, postCreateValidator } from './validations.js';
-import checkAuth from './utils/checkAuth.js'
+import { checkAuth, handleValidationErrors } from './utils/index.js'
 
-import * as UserController from './controllers/UserController.js'
-import * as PostController from './controllers/PostController.js'
+
+import { UserController, PostController } from './controllers/index.js'
+
 
 
 mongoose
@@ -30,8 +31,8 @@ const upload = multer({ storage })
 app.use(express.json());
 app.use('/uploads', express.static('uploads'))
 
-app.post('/auth/login', loginValidator, UserController.login)
-app.post('/auth/register', registerValidator, UserController.register );
+app.post('/auth/login', loginValidator, handleValidationErrors, UserController.login)
+app.post('/auth/register', registerValidator, handleValidationErrors,  UserController.register );
 app.get('/auth/me', checkAuth, UserController.getMe)
 
 app.post('/upload', checkAuth, upload.single('image'), (req, res) => {
@@ -42,9 +43,9 @@ app.post('/upload', checkAuth, upload.single('image'), (req, res) => {
 
 app.get('/posts', PostController.getAll)
 app.get('/posts/:id', PostController.getOne)
-app.post('/posts', checkAuth, postCreateValidator, PostController.create)
+app.post('/posts', checkAuth, postCreateValidator, handleValidationErrors, PostController.create)
 app.delete('/posts/:id', checkAuth, PostController.remove)
-app.patch('/posts/:id', checkAuth, PostController.update)
+app.patch('/posts/:id', checkAuth, postCreateValidator, handleValidationErrors, PostController.update)
 
 
 
